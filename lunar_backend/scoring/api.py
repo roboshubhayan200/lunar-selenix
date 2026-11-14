@@ -218,7 +218,7 @@ def create_app() -> Flask:
         JSON: {"criteria": [...]}
         HTTP 200
         """
-        from compare import CRITERIA
+        from lunar_backend.compare import CRITERIA
         result = []
         for key, info in CRITERIA.items():
             result.append({
@@ -241,7 +241,7 @@ def create_app() -> Flask:
         JSON: {"profiles": {"solar_rover": {...}, ...}, "default": {...}}
         HTTP 200
         """
-        from compare import WEIGHT_PROFILES, DEFAULT_WEIGHTS
+        from lunar_backend.compare import WEIGHT_PROFILES, DEFAULT_WEIGHTS
         return jsonify({
             "profiles": WEIGHT_PROFILES,
             "default": DEFAULT_WEIGHTS,
@@ -334,7 +334,7 @@ def create_app() -> Flask:
                          "a full ephemeris computation)."
             }), 400
 
-        from compare import SiteSpec, compare_sites, WEIGHT_PROFILES
+        from lunar_backend.compare import SiteSpec, compare_sites, WEIGHT_PROFILES
 
         site_specs = []
         for i, s in enumerate(sites_raw):
