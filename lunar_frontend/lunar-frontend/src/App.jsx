@@ -1,67 +1,98 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, LayoutGroup } from 'framer-motion'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import SpaceBackground from './components/ui/SpaceBackground.jsx'
 import TopBar from './components/ui/TopBar.jsx'
-import LandingView from './views/LandingView.jsx'
-import DashboardView from './views/DashboardView.jsx'
-import CompareView from './views/CompareView.jsx'
+import { ToastProvider } from './components/Common/Toast.jsx'
+import SolarSystemView from './views/SolarSystemView.jsx'
+import GlobeView from './views/GlobeView.jsx'
+import AnalysisView from './views/AnalysisView.jsx'
+import CompareView from './components/Compare/CompareView.jsx'
+import PlannerView from './components/Planner/PlannerView.jsx'
 import { useBackendHealth, useSitePresets } from './lib/hooks.js'
+import { TimelineCacheProvider, analysisPath } from './lib/timelineCache.jsx'
 
-/* ---- tiny hash router: #/dashboard?lat=-89.9&lon=0&name=Shackleton%20Rim ---- */
-function readHash() {
-  const h = window.location.hash.replace(/^#\/?/, '')
-  const [path, query = ''] = h.split('?')
-  const q = new URLSearchParams(query)
-  const lat = parseFloat(q.get('lat'))
-  const lon = parseFloat(q.get('lon'))
-  const site = Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon, name: q.get('name') || null } : null
-  const view = path === 'dashboard' && site ? 'dashboard' : path === 'compare' ? 'compare' : 'landing'
-  return { view, site, autoRun: q.get('run') === '1' }
+/*
+ * Routes
+ *   /                                   Globe (Explorer Mode default)
+ *   /analysis?lat=X&lon=Y&height=Z      Full site analysis report
+ *   /compare                            Compare view
+ *   /planner                            Planner Mode
+ *   /system                             Solar-system overview (Sun–Earth–Moon)
+ */
+const NAV_PATHS = { system: '/system', moon: '/', compare: '/compare', planner: '/planner' }
+
+function viewOf(pathname) {
+  if (pathname.startsWith('/planner')) return 'planner'
+  if (pathname.startsWith('/compare')) return 'compare'
+  if (pathname.startsWith('/system')) return 'system'
+  return 'moon' // "/" and "/analysis"
 }
 
-function writeHash(view, site) {
-  const q = site ? `?lat=${site.lat.toFixed(4)}&lon=${site.lon.toFixed(4)}${site.name ? `&name=${encodeURIComponent(site.name)}` : ''}` : ''
-  const next = view === 'landing' ? (site ? `#/globe${q}` : '#/') : `#/${view}${q}`
-  if (window.location.hash !== next) window.history.replaceState(null, '', next)
-}
-
-export default function App() {
-  const [{ view, site, autoRun }, setState] = useState(() => readHash())
-  const backendOk = useBackendHealth()
-  const presets = useSitePresets()
-
-  const setView = useCallback((v) => setState((s) => ({ ...s, view: v })), [])
-  const setSite = useCallback((s) => setState((st) => ({ ...st, site: s })), [])
-  const analyze = useCallback((s) => setState({ view: 'dashboard', site: s }), [])
-
-  useEffect(() => { writeHash(view, site) }, [view, site])
-
+/** Redirect pre-router hash links (#/moon?…, #/compare, #/planner) to real paths. */
+function useLegacyHashRedirect() {
+  const navigate = useNavigate()
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') setView('landing') }
-    const onHash = () => setState(readHash())
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('hashchange', onHash)
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('hashchange', onHash) }
-  }, [setView])
+    const h = window.location.hash
+    if (!h.startsWith('#/')) return
+    const [path, query = ''] = h.slice(2).split('?')
+    const q = new URLSearchParams(query)
+    if (path === 'compare' || path === 'planner') navigate(`/${path}`, { replace: true })
+    else if ((path === 'moon' || path === 'globe' || path === 'dashboard') && q.has('lat') && q.has('lon')) {
+      navigate(analysisPath({ lat: q.get('lat'), lon: q.get('lon'), height_m: q.get('h') ?? 2.0 }), { replace: true })
+    } else navigate('/', { replace: true })
+  }, [navigate])
+}
+
+function Shell() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { ok: backendOk, recheck } = useBackendHealth()
+  const presets = useSitePresets(backendOk)
+  const [site, setSite] = useState(null) // globe selection, kept while navigating
+  useLegacyHashRedirect()
+
+  const view = viewOf(location.pathname)
+  const mode = view === 'planner' ? 'planner' : 'explorer'
+  const lastExplorer = useRef('/')
+  useEffect(() => {
+    if (view !== 'planner') lastExplorer.current = location.pathname + location.search
+  }, [view, location.pathname, location.search])
+
+  const onNavigate = useCallback((id) => navigate(NAV_PATHS[id] ?? '/'), [navigate])
+  const onMode = useCallback((m) => navigate(m === 'planner' ? '/planner' : lastExplorer.current), [navigate])
+  const analyze = useCallback((s) => {
+    setSite(s)
+    navigate(analysisPath(s, { includeName: s.source === 'feature' }))
+  }, [navigate])
 
   return (
     <LayoutGroup>
       <div className="relative min-h-full">
-        <SpaceBackground dim={view === 'landing'} />
-        <TopBar view={view} onNavigate={setView} backendOk={backendOk} />
+        {mode === 'explorer' && <SpaceBackground dim={view !== 'compare'} />}
+        <TopBar view={view} mode={mode} onNavigate={onNavigate} onMode={onMode} backendOk={backendOk} onRecheck={recheck} />
 
         <AnimatePresence mode="wait">
-          {view === 'landing' && (
-            <LandingView key="landing" site={site} onSiteChange={setSite} onAnalyze={analyze} onCompare={() => setView('compare')} presets={presets} backendOk={backendOk} />
-          )}
-          {view === 'dashboard' && site && (
-            <DashboardView key="dashboard" site={site} presets={presets} onBack={() => setView('landing')} onCompare={() => setView('compare')} onSiteChange={setSite} />
-          )}
-          {view === 'compare' && (
-            <CompareView key="compare" presets={presets} currentSite={site} autoRun={autoRun} onBack={() => setView('landing')} onAnalyze={analyze} />
-          )}
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<GlobeView site={site} onSiteChange={setSite} onAnalyze={analyze} onCompare={() => navigate('/compare')} onBackToSystem={() => navigate('/system')} presets={presets} backendOk={backendOk} />} />
+            <Route path="/analysis" element={<AnalysisView presets={presets} backendOk={backendOk} />} />
+            <Route path="/compare" element={<CompareView presets={presets} currentSite={site} backendOk={backendOk} onBack={() => navigate('/')} onAnalyze={analyze} />} />
+            <Route path="/planner" element={<PlannerView presets={presets} backendOk={backendOk} initialSite={site} />} />
+            <Route path="/system" element={<SolarSystemView onEnterMoon={() => navigate('/')} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </AnimatePresence>
       </div>
     </LayoutGroup>
+  )
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <TimelineCacheProvider>
+        <Shell />
+      </TimelineCacheProvider>
+    </ToastProvider>
   )
 }

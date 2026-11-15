@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 export const fadeUp = {
   hidden: { opacity: 0, y: 18, filter: 'blur(6px)' },
@@ -119,38 +119,21 @@ export function Spinner({ className = 'h-5 w-5' }) {
   )
 }
 
-export function StatusDot({ ok, label }) {
-  return (
-    <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">
-      <span className="relative inline-flex h-2 w-2">
-        <span className={`absolute inline-flex h-full w-full rounded-full ${ok ? 'bg-comms-bright' : ok === false ? 'bg-danger' : 'bg-ink-muted'} ${ok ? 'animate-ping opacity-60' : ''}`} />
-        <span className={`relative inline-flex h-2 w-2 rounded-full ${ok ? 'bg-comms-bright' : ok === false ? 'bg-danger' : 'bg-ink-muted'}`} />
-      </span>
-      {label}
-    </span>
-  )
-}
-
-export function Logo({ compact = false }) {
+/** Team logo (emblem cropped from the official Lunar Selenix artwork) + wordmark. */
+export function Logo({ compact = false, light = false, small = false }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="relative h-8 w-8">
-        <svg viewBox="0 0 32 32" className="h-8 w-8">
-          <defs>
-            <linearGradient id="lg" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0" stopColor="#7ee8fa" />
-              <stop offset="1" stopColor="#0ea5c9" />
-            </linearGradient>
-          </defs>
-          <circle cx="16" cy="16" r="13" fill="none" stroke="url(#lg)" strokeWidth="1.5" opacity="0.9" />
-          <path d="M16 3 a13 13 0 0 1 0 26 a9 13 0 0 0 0 -26z" fill="url(#lg)" opacity="0.85" />
-          <circle cx="16" cy="27" r="1.6" fill="#f2b134" />
-        </svg>
-      </div>
+      <img
+        src="/logo-emblem.png"
+        alt="Lunar Selenix logo"
+        width={small ? 32 : 40}
+        height={small ? 32 : 40}
+        className={`${small ? 'h-8 w-8' : 'h-10 w-10'} rounded-full ${light ? '' : 'shadow-[0_0_0_1px_rgba(56,217,245,0.25),0_0_18px_rgba(56,217,245,0.25)]'}`}
+      />
       {!compact && (
         <div className="leading-none">
-          <div className="font-display text-[15px] font-semibold tracking-[0.18em] text-ink">SELENIX</div>
-          <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.22em] text-ink-muted">Lunar Site Navigator</div>
+          <div className={`font-display text-[15px] font-bold tracking-[0.16em] ${light ? 'text-slate-900' : 'text-ink'}`}>LUNAR SELENIX</div>
+          <div className={`mt-1 font-mono text-[9px] uppercase tracking-[0.22em] ${light ? 'text-slate-500' : 'text-ink-muted'}`}>Lunar Site Navigator</div>
         </div>
       )}
     </div>
@@ -159,67 +142,6 @@ export function Logo({ compact = false }) {
 
 export function Kbd({ children }) {
   return <kbd className="rounded border border-ink-muted/30 bg-space-800 px-1.5 py-0.5 font-mono text-[10px] text-ink-dim">{children}</kbd>
-}
-
-export function LoadingOverlay({ show, title, steps = [], note }) {
-  return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 z-40 flex items-center justify-center bg-void/60 backdrop-blur-md"
-        >
-          <motion.div initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -8, opacity: 0 }} className="glass-strong w-[min(92vw,420px)] p-6">
-            <div className="flex items-center gap-3">
-              <div className="relative h-10 w-10">
-                <div className="absolute inset-0 rounded-full border border-accent/30" />
-                <div className="absolute inset-0 rounded-full border-t-2 border-accent animate-spin" />
-                <div className="absolute inset-[9px] rounded-full bg-accent/20" />
-              </div>
-              <div>
-                <div className="font-display text-base font-semibold text-ink">{title}</div>
-                {note && <div className="text-xs text-ink-muted">{note}</div>}
-              </div>
-            </div>
-            {steps.length > 0 && (
-              <ul className="mt-4 space-y-2">
-                {steps.map((s, i) => (
-                  <motion.li
-                    key={s}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 + i * 0.6 }}
-                    className="flex items-center gap-2 font-mono text-[11px] text-ink-dim"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(56,217,245,0.9)]" />
-                    {s}
-                  </motion.li>
-                ))}
-              </ul>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-export function ErrorBanner({ error, onRetry }) {
-  if (!error) return null
-  return (
-    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="glass flex flex-wrap items-center justify-between gap-3 border-danger/40 p-4">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-danger/20 text-danger">!</span>
-        <div>
-          <div className="font-display text-sm font-semibold text-danger">Request failed</div>
-          <div className="text-xs text-ink-dim">{String(error)}</div>
-        </div>
-      </div>
-      {onRetry && <button className="btn-ghost" onClick={onRetry}>Retry</button>}
-    </motion.div>
-  )
 }
 
 export function IconArrow({ className = 'h-4 w-4' }) {

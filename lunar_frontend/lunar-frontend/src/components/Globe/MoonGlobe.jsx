@@ -3,11 +3,23 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, OrbitControls, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import StarField from './StarField.jsx'
-import ErrorBoundary from '../ui/ErrorBoundary.jsx'
-import { FEATURES, KIND_COLORS, latLonToVector3, vector3ToLatLon, fmtLat, fmtLon } from '../../lib/lunar.js'
+import SiteMarker, { SURFACE_R, useFacing } from './SiteMarker.jsx'
+import ErrorBoundary from '../Common/ErrorBoundary.jsx'
+import { FEATURES, KIND_COLORS, latLonToVector3, vector3ToLatLon, roundCoord } from '../../lib/lunar.js'
 
 const UP = new THREE.Vector3(0, 1, 0)
-const SURFACE_R = 1.0
+
+/**
+ * Convert a raycast hit to selenographic coordinates.
+ * The hit point is in world space; transform it into the Moon mesh's own
+ * frame first so the result stays correct even if the mesh is ever rotated
+ * or scaled. Rounded once (1e-4°) so display and API request share one value.
+ */
+function hitToLatLon(e) {
+  const local = e.object.worldToLocal(e.point.clone())
+  const { lat, lon } = vector3ToLatLon(local)
+  return { lat: roundCoord(lat), lon: roundCoord(lon) }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Moon surface                                                       */
@@ -35,12 +47,11 @@ function MoonMesh({ onPick, onHoverPoint, onReady, interactive, quality }) {
         if (!interactive) return
         if (e.delta > 5) return // drag, not a click
         e.stopPropagation()
-        const { lat, lon } = vector3ToLatLon(e.point)
-        onPick?.({ lat, lon })
+        onPick?.(hitToLatLon(e))
       }}
       onPointerMove={(e) => {
         if (!interactive) return
-        onHoverPoint?.(e.point)
+        onHoverPoint?.(e.point, e)
       }}
       onPointerOut={() => onHoverPoint?.(null)}
     >
@@ -125,22 +136,6 @@ function Graticule({ step = 15, r = 1.006 }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Helpers for labels: fade when facing away or too far                */
-/* ------------------------------------------------------------------ */
-
-function useFacing(positionRef, onUpdate) {
-  const tmp = useMemo(() => new THREE.Vector3(), [])
-  useFrame(({ camera }) => {
-    const p = positionRef.current
-    if (!p) return
-    tmp.copy(camera.position).normalize()
-    const facing = p.clone().normalize().dot(tmp)
-    const dist = camera.position.length()
-    onUpdate(facing, dist)
-  })
-}
-
-/* ------------------------------------------------------------------ */
 /*  Feature label                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -188,100 +183,6 @@ function FeatureLabel({ feature, onSelect, highlight }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Site pin (selected or marker)                                      */
-/* ------------------------------------------------------------------ */
-
-export function SitePin({ lat, lon, label, color = '#38d9f5', primary = false, showCoords = true }) {
-  const pos = useMemo(() => latLonToVector3(lat, lon, SURFACE_R), [lat, lon])
-  const quat = useMemo(() => new THREE.Quaternion().setFromUnitVectors(UP, pos.clone().normalize()), [pos])
-  const posRef = useRef(pos)
-  const ringRef = useRef()
-  const ring2Ref = useRef()
-  const groupRef = useRef()
-  const elRef = useRef()
-
-  useEffect(() => { posRef.current = pos }, [pos])
-
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime
-    if (ringRef.current) {
-      const phase = (t % 1.8) / 1.8
-      ringRef.current.scale.setScalar(1 + phase * 1.6)
-      ringRef.current.material.opacity = (1 - phase) * 0.8
-    }
-    if (ring2Ref.current) {
-      const phase = ((t + 0.9) % 1.8) / 1.8
-      ring2Ref.current.scale.setScalar(1 + phase * 1.6)
-      ring2Ref.current.material.opacity = (1 - phase) * 0.5
-    }
-  })
-
-  useFacing(posRef, (facing) => {
-    const alpha = THREE.MathUtils.clamp((facing - 0.05) / 0.2, 0, 1)
-    if (elRef.current) elRef.current.style.opacity = alpha.toFixed(2)
-    if (groupRef.current) groupRef.current.visible = facing > -0.08
-  })
-
-  const scale = primary ? 1 : 0.7
-  const poleH = 0.07 * scale
-
-  return (
-    <group ref={groupRef} position={pos} quaternion={quat}>
-      {/* surface rings */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0015, 0]}>
-        <ringGeometry args={[0.014 * scale, 0.017 * scale, 48]} />
-        <meshBasicMaterial color={color} transparent opacity={0.95} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      {primary && (
-        <>
-          <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-            <ringGeometry args={[0.016, 0.0175, 48]} />
-            <meshBasicMaterial color={color} transparent opacity={0.6} side={THREE.DoubleSide} depthWrite={false} />
-          </mesh>
-          <mesh ref={ring2Ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-            <ringGeometry args={[0.016, 0.0175, 48]} />
-            <meshBasicMaterial color={color} transparent opacity={0.4} side={THREE.DoubleSide} depthWrite={false} />
-          </mesh>
-        </>
-      )}
-      {/* pole + head */}
-      <mesh position={[0, poleH / 2, 0]}>
-        <cylinderGeometry args={[0.0018, 0.0018, poleH, 8]} />
-        <meshBasicMaterial color={color} />
-      </mesh>
-      <mesh position={[0, poleH + 0.006 * scale, 0]}>
-        <sphereGeometry args={[0.007 * scale, 16, 16]} />
-        <meshBasicMaterial color={color} />
-      </mesh>
-      <mesh position={[0, poleH + 0.006 * scale, 0]}>
-        <sphereGeometry args={[0.013 * scale, 16, 16]} />
-        <meshBasicMaterial color={color} transparent opacity={0.18} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
-      <Html position={[0, poleH + 0.03, 0]} center zIndexRange={[60, 0]} style={{ pointerEvents: 'none' }}>
-        <div ref={elRef} style={{ opacity: 0, transition: 'opacity 200ms ease', transform: 'translateY(-50%)' }}>
-          <div
-            className="glass-strong"
-            style={{
-              padding: primary ? '6px 10px' : '4px 8px',
-              borderRadius: 10,
-              borderColor: `${color}66`,
-              whiteSpace: 'nowrap',
-              fontFamily: 'var(--font-mono)',
-              fontSize: primary ? 11 : 10,
-              color: 'var(--color-ink)',
-              lineHeight: 1.35,
-            }}
-          >
-            {label && <div style={{ color, fontWeight: 600, letterSpacing: '0.04em' }}>{label}</div>}
-            {showCoords && <div style={{ color: 'var(--color-ink-dim)' }}>{fmtLat(lat)} · {fmtLon(lon)}</div>}
-          </div>
-        </div>
-      </Html>
-    </group>
-  )
-}
-
-/* ------------------------------------------------------------------ */
 /*  Hover reticle                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -317,10 +218,10 @@ function HoverReticle({ pointRef }) {
 
 function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2 }
 
-function CameraRig({ interactive, autoRotate, focus, hasSelection, onInteract }) {
+function CameraRig({ interactive, autoRotate, focus, onInteract }) {
   const controls = useRef()
-  const rotating = useRef(true) // user-idle flag; combined with the autoRotate prop each frame
-  const idleTimer = useRef()
+  // Subtle idle spin; once the user grabs the globe it stays stopped for the session.
+  const rotating = useRef(true)
   const flight = useRef(null)
   const { camera } = useThree()
 
@@ -331,7 +232,6 @@ function CameraRig({ interactive, autoRotate, focus, hasSelection, onInteract })
     const to = latLonToVector3(focus.lat, focus.lon, dist)
     flight.current = { from: camera.position.clone(), to, t: 0, duration: focus.duration ?? 1.5 }
     rotating.current = false
-    clearTimeout(idleTimer.current)
   }, [focus, camera])
 
   useFrame((_, delta) => {
@@ -355,17 +255,8 @@ function CameraRig({ interactive, autoRotate, focus, hasSelection, onInteract })
   const handleStart = () => {
     flight.current = null
     rotating.current = false
-    clearTimeout(idleTimer.current)
     onInteract?.()
   }
-  const handleEnd = () => {
-    clearTimeout(idleTimer.current)
-    if (autoRotate && !hasSelection) {
-      idleTimer.current = setTimeout(() => { rotating.current = true }, 14000)
-    }
-  }
-
-  useEffect(() => () => clearTimeout(idleTimer.current), [])
 
   return (
     <OrbitControls
@@ -381,7 +272,6 @@ function CameraRig({ interactive, autoRotate, focus, hasSelection, onInteract })
       dampingFactor={0.07}
       autoRotateSpeed={0.35}
       onStart={handleStart}
-      onEnd={handleEnd}
     />
   )
 }
@@ -390,7 +280,7 @@ function CameraRig({ interactive, autoRotate, focus, hasSelection, onInteract })
 /*  Scene assembly                                                     */
 /* ------------------------------------------------------------------ */
 
-function Scene({ selected, onSelect, markers, focus, interactive, showLabels, showGrid, autoRotate, onReady, onInteract, onHover, quality, highlightFeature, stars }) {
+function Scene({ children, selected, onSelect, markers, focus, interactive, showLabels, showGrid, autoRotate, onReady, onInteract, onHover, quality, highlightFeature, stars }) {
   const hoverRef = useRef(null)
   const lastHover = useRef(0)
 
@@ -404,14 +294,14 @@ function Scene({ selected, onSelect, markers, focus, interactive, showLabels, sh
 
       <MoonMesh
         onPick={onSelect}
-        onHoverPoint={(p) => {
+        onHoverPoint={(p, e) => {
           hoverRef.current = p
           if (!onHover) return
           const now = performance.now()
           if (!p) { onHover(null); return }
           if (now - lastHover.current < 70) return
           lastHover.current = now
-          onHover(vector3ToLatLon(p))
+          onHover(hitToLatLon(e))
         }}
         onReady={onReady}
         interactive={interactive}
@@ -421,20 +311,22 @@ function Scene({ selected, onSelect, markers, focus, interactive, showLabels, sh
       {showGrid && <Graticule />}
 
       {showLabels && FEATURES.map((f) => (
-        <FeatureLabel key={f.name} feature={f} onSelect={(ft) => onSelect?.({ lat: ft.lat, lon: ft.lon, name: ft.name, fromFeature: true })} highlight={highlightFeature === f.name} />
+        <FeatureLabel key={f.name} feature={f} onSelect={(ft) => onSelect?.({ lat: ft.lat, lon: ft.lon, name: ft.name, source: "feature" })} highlight={highlightFeature === f.name} />
       ))}
 
       {markers?.map((m, i) => (
-        <SitePin key={`${m.name}-${i}`} lat={m.lat} lon={m.lon} label={m.name} color={m.color || '#9085e9'} showCoords={false} />
+        <SiteMarker key={`${m.name}-${i}`} lat={m.lat} lon={m.lon} label={m.name} color={m.color || '#9085e9'} rank={m.rank ?? null} showCoords={false} />
       ))}
 
       {selected && (
-        <SitePin lat={selected.lat} lon={selected.lon} label={selected.name || 'Candidate site'} primary />
+        <SiteMarker lat={selected.lat} lon={selected.lon} label={selected.name || 'Candidate site'} primary />
       )}
+
+      {children}
 
       {interactive && <HoverReticle pointRef={hoverRef} />}
 
-      <CameraRig interactive={interactive} autoRotate={autoRotate} focus={focus} hasSelection={!!selected} onInteract={onInteract} />
+      <CameraRig interactive={interactive} autoRotate={autoRotate} focus={focus} onInteract={onInteract} />
     </>
   )
 }
@@ -451,6 +343,7 @@ function Scene({ selected, onSelect, markers, focus, interactive, showLabels, sh
  *  - quality: 'high' | 'low'
  */
 export default function MoonGlobe({
+  children = null, // extra scene content (e.g. SkyIndicators overlay)
   selected = null,
   onSelect,
   markers = [],
@@ -493,7 +386,9 @@ export default function MoonGlobe({
             quality={quality}
             highlightFeature={highlightFeature}
             stars={stars}
-          />
+          >
+            {children}
+          </Scene>
         </Suspense>
       </Canvas>
       </ErrorBoundary>

@@ -260,3 +260,13 @@ body {
 .recharts-polar-grid-angle line, .recharts-polar-grid-concentric polygon, .recharts-polar-grid-concentric circle { stroke: rgba(167,180,211,0.12) !important; }
 .recharts-polar-angle-axis-tick text { font-family: var(--font-mono); font-size: 10px; fill: var(--color-ink-dim); }
 .recharts-polar-radius-axis-tick text { font-family: var(--font-mono); font-size: 9px; fill: var(--color-ink-muted); }
+
+/* Analysis viewport: power rays / DTE signal / antenna ping */
+@keyframes svgflow { to { stroke-dashoffset: -36; } }
+@keyframes svgping { 0% { r: 6px; opacity: 0.9; } 100% { r: 30px; opacity: 0; } }
+.svg-flow { animation: svgflow 0.9s linear infinite; }
+.svg-flow-fast { animation: svgflow 0.6s linear infinite; } /* antenna -> Earth */
+.svg-ping { animation: svgping 1.5s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .svg-flow, .svg-flow-fast, .svg-ping { animation: none; }
+}

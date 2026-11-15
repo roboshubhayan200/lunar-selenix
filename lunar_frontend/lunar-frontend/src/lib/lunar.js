@@ -28,14 +28,38 @@ export function latLonToVector3(lat, lon, r = 1) {
   )
 }
 
-/** Point on the unit sphere -> {lat, lon} in degrees (east longitude). */
+/**
+ * Point in the Moon mesh's LOCAL frame -> {lat, lon} in degrees.
+ *
+ *   lat = asin(y / r)          south is negative
+ *   lon = atan2(-z, x)         west is negative, range (-180, 180]
+ *
+ * This is the exact inverse of latLonToVector3 (and of three.js
+ * SphereGeometry's UV mapping, which places the texture's 0° meridian on +X
+ * and +90° E on -Z). Note: the textbook form atan2(x, z) assumes 0° lies on
+ * +Z; with this texture it would put every click 90° away from the terrain
+ * under the cursor, so the -z/x form is the one that matches the surface.
+ */
 export function vector3ToLatLon(v) {
-  const n = v.clone().normalize()
-  const lat = 90 - Math.acos(THREE.MathUtils.clamp(n.y, -1, 1)) / DEG
-  let phi = Math.atan2(n.z, -n.x)
-  if (phi < 0) phi += Math.PI * 2
-  const lon = normalizeLon(phi / DEG - 180)
+  const r = Math.hypot(v.x, v.y, v.z)
+  const lat = Math.asin(THREE.MathUtils.clamp(v.y / r, -1, 1)) / DEG
+  let lon = Math.atan2(-v.z, v.x) / DEG
+  if (lon === -180) lon = 180
   return { lat, lon }
+}
+
+/** Fixed precision used for picked coordinates: 0.01° ≈ 300 m on the Moon (spec: 2 decimals). */
+export const COORD_DECIMALS = 2
+/** Round once at pick time so the displayed value IS the value sent to the API. */
+export function roundCoord(v) {
+  const p = 10 ** COORD_DECIMALS
+  return Math.round(v * p) / p
+}
+
+/** Raw signed degrees, e.g. -89.90°. Never converts sign to N/S/E/W. */
+export function fmtDeg(v, digits = 2) {
+  if (v == null || !Number.isFinite(Number(v))) return '—'
+  return `${Number(v).toFixed(digits)}°`
 }
 
 /** Great-circle distance in km between two lunar coordinates. */
