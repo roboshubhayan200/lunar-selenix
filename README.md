@@ -19,8 +19,8 @@ Lunar Selenix helps mission planners, educators, and students evaluate any point
 
 | Component | URL |
 |-----------|-----|
-| **Frontend** | *[Your Vercel URL here]* |
-| **Backend API** | *[Your Render URL here]* |
+| **Frontend** | *[https://lunar-selenix.vercel.app/]* |
+| **Backend API** | *[https://lunar-selenix.onrender.com/]* |
 
 ---
 
@@ -155,7 +155,7 @@ python -m lunar_backend.scoring.api
 
 ### Frontend
 ```bash
-cd lunar_frontend
+cd lunar_frontend/lunar-frontend
 npm install
 npm run dev
 # App starts at http://localhost:5173
@@ -218,5 +218,5 @@ This project was built for the NASA International Space Apps Challenge 2026. All
 
 <p align="center">
   <b>Built with real orbital mechanics. No approximations. No static datasets.</b><br/>
-  <i>Every number comes from JPL Horizons.</i>
+  <i>Every number comes from JPL Horizons Live API.</i>
 </p>
