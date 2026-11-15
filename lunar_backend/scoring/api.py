@@ -613,6 +613,7 @@ def create_app() -> Flask:
 
     return app
 
+app = create_app()
 
 # ---------------------------------------------------------------------------
 # Run the development server

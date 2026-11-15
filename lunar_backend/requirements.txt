@@ -1,4 +1,5 @@
 flask >= 3.0
+flask-cors
 requests >= 2.31
 numpy >= 1.24
 rasterio >= 1.3
