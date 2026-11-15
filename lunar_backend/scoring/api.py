@@ -39,6 +39,7 @@ Usage
     app = create_app()
 """
 
+
 from __future__ import annotations
 
 import json
@@ -49,6 +50,8 @@ from typing import Optional
 # pyrefly: ignore[missing-import]
 from flask import Flask, jsonify, request
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 # ---------------------------------------------------------------------------
 # Well-known candidate landing sites
