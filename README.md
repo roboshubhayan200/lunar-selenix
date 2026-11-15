@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/NASA-Space%20Apps%202027-blue?style=for-the-badge&logo=nasa" alt="NASA Space Apps 2027"/>
+  <img src="https://img.shields.io/badge/NASA-Space%20Apps%202026-blue?style=for-the-badge&logo=nasa" alt="NASA Space Apps 2026"/>
   <img src="https://img.shields.io/badge/Challenge-Lunar%20Site%20Navigator-orange?style=for-the-badge" alt="Challenge"/>
   <img src="https://img.shields.io/badge/Status-Live-brightgreen?style=for-the-badge" alt="Status"/>
 </p>
@@ -10,7 +10,7 @@
 
 Lunar Selenix helps mission planners, educators, and students evaluate any point on the Moon's surface as a candidate landing or base site — using real orbital mechanics, not approximations.
 
-> 🏆 Built for the **NASA International Space Apps Challenge 2027**  
+> 🏆 Built for the **NASA International Space Apps Challenge 2026**  
 > 📋 Challenge: *Lunar Site Navigator*
 
 ---
@@ -119,7 +119,7 @@ POST /api/timeline
   "lat_deg": -89.9,
   "lon_deg": 0.0,
   "height_m": 2.0,
-  "start_utc": "2027-06-01",
+  "start_utc": "2026-11-15",
   "days": 29.53,
   "step_min": 60
 }
@@ -206,13 +206,13 @@ Tests cover: Horizons API parsing, visibility computations, scoring logic, all A
 
 ## 👨‍💻 Team
 
-**Lunar Selenix** — NASA Space Apps Challenge 2027
+**Lunar Selenix** — NASA Space Apps Challenge 2026
 
 ---
 
 ## 📜 License
 
-This project was built for the NASA International Space Apps Challenge 2027. All ephemeris data is sourced from NASA's publicly available JPL Horizons System.
+This project was built for the NASA International Space Apps Challenge 2026. All ephemeris data is sourced from NASA's publicly available JPL Horizons System.
 
 ---
 
