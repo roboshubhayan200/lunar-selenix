@@ -18,7 +18,7 @@ import axios from 'axios'
 const BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '')
 
 export const http = axios.create({
-  baseURL: BASE,
+  baseURL: "https://lunar-selenix.onrender.com/",
   timeout: 300_000, // Horizons fetches for multi-site compares can be slow
   headers: { 'Content-Type': 'application/json' },
 })
